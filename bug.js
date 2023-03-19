@@ -16,8 +16,12 @@ const GameState = {
 }
 let game = { bugsScore: 0, maxScore: 0, maxTime: 30, elapsedTime: 0, totalBugs: bugsNum, state: GameState.Start };
 
+const sounds = new Tone.Players({
+    'spiders': 'sounds/spiders.wav',
+})
 
-
+const delay = new Tone.FeedbackDelay("8n",0.5);
+let initTone = true;
 function preload() {
     for (let i=0; i<bugsNum; i++) {
         spriteSheets[i] = loadImage("imgs/bug.png");
@@ -29,7 +33,8 @@ function setup() {
     createCanvas(400, 400);
     imageMode(CENTER);
     angleMode(DEGREES);
-
+    sounds.toDestination();
+       
     for (let i=0; i<game.totalBugs; i++) {
         bugs[i] = new bugAnimation(spriteSheets[i],80,80,random(100,300),random(100,300),6,random(1.0,2.0),6);
     }
@@ -97,6 +102,15 @@ function startGame() {
     game.bugsScore = 0;
     game.elapsedTime = 0;
     game.state = GameState.Playing;
+    if (initTone === true) {
+        initTone = false;
+        Tone.start();
+        //sounds.connect(delay);
+        sounds.player('spiders').start(0,'0:2');
+        sounds.player('spiders').setLoopPoints(0.2, 0.2);
+        sounds.player('spiders').loop = true;
+        sounds.player('spiders').autostart = true;
+    }
 }
 
 //Resets the game
