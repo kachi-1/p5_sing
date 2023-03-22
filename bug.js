@@ -1,12 +1,14 @@
 let spriteSheets = [];
 let moving = 0;
 let bugs = [];
+let otherBugs = [];
 let bugsNum = 15;
 let direction = [-1, 1];
 let angles = [0, 1];
 let startButton;
 let restartButton;
 let allSquished = false;
+let shaker = 0;
 
 let gameEnd = "GAME OVER\n";
 const GameState = {
@@ -15,10 +17,15 @@ const GameState = {
     GameOver: "GameOver"
 }
 let game = { bugsScore: 0, maxScore: 0, maxTime: 30, elapsedTime: 0, totalBugs: bugsNum, state: GameState.Start };
-
 const sounds = new Tone.Players({
-    'spiders': 'sounds/spiders.wav',
+    'spiders': 'sounds/spiders.wav'
 })
+const squished = new Tone.Player('sounds/squished.wav');
+
+const synth = new Tone.FMSynth().toDestination();
+const loopS = new Tone.Loop(time => {
+    synth.triggerAttackRelease("C2","8n", time);
+}, "4n").start("8n");
 
 const delay = new Tone.FeedbackDelay("8n",0.5);
 let initTone = true;
@@ -33,10 +40,15 @@ function setup() {
     createCanvas(400, 400);
     imageMode(CENTER);
     angleMode(DEGREES);
-    sounds.toDestination();
+    sounds.connect(delay);
+    delay.toDestination();
+    squished.toDestination();
        
     for (let i=0; i<game.totalBugs; i++) {
-        bugs[i] = new bugAnimation(spriteSheets[i],80,80,random(100,300),random(100,300),6,random(1.0,2.0),6);
+        bugs[i] = new bugAnimation(spriteSheets[i],80,80,random(100,300),random(100,300),6,random(1.0,3.0),6);
+    }
+    for (let i=0; i<5; i++) {
+        otherBugs[i] = new bugAnimation(spriteSheets[i],80,80,random(100,300),random(100,300),6,random(1.0,2.0),6);
     }
 
 }
@@ -44,7 +56,7 @@ function setup() {
 function draw() {
     switch(game.state) {
         case GameState.Playing:
-            background(220);
+            background(100);
             removeElements();
             for (let i=0; i<bugsNum; i++) {
                 bugs[i].draw();
@@ -68,6 +80,25 @@ function draw() {
             if (currTime < 0) {
                 game.state = GameState.GameOver;
             }
+            if (currTime < 0) {
+                synth.frequency.value = 1;
+                game.state = GameState.GameOver;
+            }
+            if (shaker>15) {
+                textSize(10);
+                text('Missed squishes awaken sleepers, avoid them!',100,30);
+            }
+            if (currTime < 15) {
+                synth.frequency.value += 0.1;
+                if (shaker>200) {
+                    textSize(10);
+                    text('Sleepers!!!!!',100,40);
+                    synth.volume.value += 0.005;
+                    for (let i=0; i<5; i++) {
+                        otherBugs[i].draw();
+                    }
+                }
+            }
             break;
 
         case GameState.GameOver:
@@ -76,7 +107,7 @@ function draw() {
             else gameEnd = "GAME OVER\nBugs Squished: " + game.bugsScore;
             background(220);
             textSize(20);
-            
+            stopSounds();
             text(gameEnd, 100, 100);
             restartButton = createButton('Try Again!');
             restartButton.position(100, 180);
@@ -87,7 +118,6 @@ function draw() {
             background(220);
             textSize(35);
             text("Welcome to Bug Squish\n", 0, 100);
-            
             startButton = createButton('Start Squishing!');
             startButton.position(100, 150);
             startButton.mousePressed(startGame);
@@ -105,9 +135,10 @@ function startGame() {
     if (initTone === true) {
         initTone = false;
         Tone.start();
-        //sounds.connect(delay);
-        sounds.player('spiders').start(0,'0:2');
-        sounds.player('spiders').setLoopPoints(0.2, 0.2);
+        Tone.Transport.start();
+        sounds.player('spiders').start(0,'0:3');
+        sounds.player('spiders').restart('+0.7','0:3');
+        sounds.player('spiders').setLoopPoints(0.9, 0.9);
         sounds.player('spiders').loop = true;
         sounds.player('spiders').autostart = true;
     }
@@ -118,6 +149,11 @@ function restartGame() {
     location.reload();
 }
 
+//Resets the game
+function stopSounds() {
+    sounds.player('spiders').stop();
+}
+
 //Squishes bugs when clicked
 function mousePressed() {
     for (let i=0; i<bugsNum; i++) {
@@ -125,12 +161,15 @@ function mousePressed() {
         if (contains) {
             if (bugs[i].moving != 0) {
                 bugs[i].squish();
+                squished.start();
                 game.bugsScore++;
+                sounds.player('spiders').playbackRate += 0.04;
+                sounds.player('spiders').volume.value ++;
                 for (let i=0; i<bugsNum; i++) {
                     bugs[i].speed += 0.1;
                 }
             }
-        }
+        }else {shaker++;};
        
     }
 }
